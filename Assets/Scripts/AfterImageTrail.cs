@@ -102,16 +102,19 @@ public class AfterImageTrail : MonoBehaviour
             Mesh bakeMesh = new();
             skin.BakeMesh(bakeMesh);
             meshesToCombine[i].mesh = bakeMesh;
-            meshesToCombine[i].transform = skin.localToWorldMatrix * matrix;
+            meshesToCombine[i].transform = matrix * skin.localToWorldMatrix ;
         }
 
         // insert the meshes to combine in the array
-        for (int i = allSkinnedRenderers.Length; meshesToCombine.Length > i; i++)
+        for (int i = 0; i < allMesheRenderers.Length; i++)
         {
             var renderer = allMesheRenderers[i];
+            var currentFilter = filters[i];
 
-            meshesToCombine[i].mesh = filters[i].sharedMesh;
-            meshesToCombine[i].transform = renderer.localToWorldMatrix * matrix;
+            i = allSkinnedRenderers.Length + i;
+
+            meshesToCombine[i].mesh = currentFilter.sharedMesh;
+            meshesToCombine[i].transform = matrix * renderer.localToWorldMatrix ;
         }
 
         // create the gameobject and move it to the correct position
@@ -120,7 +123,7 @@ public class AfterImageTrail : MonoBehaviour
         obj.transform.rotation = transform.rotation;
 
         // crate a MeshRenderer and give it to the obj
-        MeshRenderer objRenderer = obj.AddComponent<MeshRenderer>();
+        Renderer objRenderer = obj.AddComponent<MeshRenderer>();
         objRenderer.material = trailMaterial;
 
         // !!! change the material propreties here:
