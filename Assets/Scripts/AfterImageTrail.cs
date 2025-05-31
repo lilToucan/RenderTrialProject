@@ -6,8 +6,14 @@ using UnityEngine.InputSystem;
 public class AfterImageTrail : MonoBehaviour
 {
     [SerializeField] float trailCooldownTimer = 0.01f;
-    [SerializeField] float moveSpeed = 600f;
+    [SerializeField] float moveSpeed = 20f;
+    [SerializeField] float runSpeed = 50f;
+    [SerializeField] float afterImageDuration = 1f;
     [SerializeField] Material trailMaterial;
+
+    public delegate GameObject GetPooledObject(); 
+
+    public GetPooledObject GetPooledGameobject;
 
     InputActions inputs;
 
@@ -20,14 +26,14 @@ public class AfterImageTrail : MonoBehaviour
 
     Vector2 moveDir;
 
-    float trailActivatedTime;
+    float trailActivatedTime, currentSpeed;
     bool isTrailActive = false;
 
     private void Awake()
     {
         inputs = new();
         rb = GetComponent<Rigidbody>();
-
+        currentSpeed = moveSpeed;
 
         // get the meshs renderers and combine them
         allSkinnedRenderers = GetComponentsInChildren<SkinnedMeshRenderer>();
@@ -71,13 +77,24 @@ public class AfterImageTrail : MonoBehaviour
     private void FixedUpdate()
     {
         Vector3 dir = new(moveDir.x, 0, moveDir.y);
-        rb.linearVelocity = dir * moveSpeed ;
+        rb.linearVelocity = dir * currentSpeed ;
+
+        if (rb.linearVelocity == Vector3.zero)
+            return;
+
+        Quaternion rot = Quaternion.LookRotation(rb.linearVelocity,Vector3.up);
+        transform.rotation = Quaternion.RotateTowards(transform.rotation,rot,20);
     }
 
     private void OnActivetedTrail(InputAction.CallbackContext context)
     {
         isTrailActive = !isTrailActive;
         trailActivatedTime = Time.time;
+
+        if (isTrailActive)
+            currentSpeed = runSpeed;
+        else
+            currentSpeed = moveSpeed;
     }
 
     private void OnMovementPreformed(InputAction.CallbackContext context)
@@ -118,29 +135,37 @@ public class AfterImageTrail : MonoBehaviour
         }
 
         // create the gameobject and move it to the correct position
-        GameObject obj = new GameObject("obj number: ");
+        GameObject obj = GetPooledGameobject?.Invoke();
         obj.transform.position = transform.position;
         obj.transform.rotation = transform.rotation;
 
         // crate a MeshRenderer and give it to the obj
-        Renderer objRenderer = obj.AddComponent<MeshRenderer>();
+        Renderer objRenderer = obj.GetComponent<MeshRenderer>();
         objRenderer.material = trailMaterial;
 
-        // !!! change the material propreties here:
+        
 
         // create a MeshFilter and give it to the obj
-        MeshFilter filter = obj.AddComponent<MeshFilter>();
+        MeshFilter filter = obj.GetComponent<MeshFilter>();
         filter.mesh.CombineMeshes(meshesToCombine);
 
 
         // destroy after x seconds
-        StartCoroutine(DestroyGameobject(obj));
+        StartCoroutine(DestroyGameobject(obj,objRenderer));
 
     }
 
-    private IEnumerator DestroyGameobject(GameObject obj)
+    private IEnumerator DestroyGameobject(GameObject obj, Renderer objRen)
     {
-        yield return new WaitForSeconds(0.5f);
-        Destroy(obj);
+        float timer = afterImageDuration;
+        
+        while (timer > 0)
+        {
+            timer -= Time.deltaTime;
+            objRen.material.SetFloat("_AlphaLerped", Mathf.Lerp(0, 1, timer / afterImageDuration));
+            yield return null;
+        }
+        
+        obj.SetActive(false);
     }
 }
